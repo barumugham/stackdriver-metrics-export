@@ -19,13 +19,14 @@ import webapp2
 import json
 import base64
 import config
+import ast
 from datetime import datetime 
 from googleapiclient.discovery import build
 from googleapiclient.discovery import HttpError
 from google.appengine.api import app_identity
 
 
-def build_rows(timeseries, metadata):
+def build_rows(self,timeseries, metadata):
     """ Build a list of JSON object rows to insert into BigQuery
         This function may fan out the input by writing 1 entry into BigQuery for every point,
         if there is more than 1 point in the timeseries
@@ -52,11 +53,93 @@ def build_rows(timeseries, metadata):
             "type": timeseries["resource"]["type"] 
         }
         resource_labels_list = get_labels(timeseries["resource"], "labels")
+        logging.debug("****************Labels resource List: {}".format(resource_labels_list))
+        #get(project=*, zone=*, instance=*)
+
         if len(resource_labels_list) > 0:
+            logging.debug("Length of resource label list {}".format(resource_labels_list))
             resource["labels"] = resource_labels_list
+            
+        logging.debug("****************Labels resource: {}".format(resource["labels"]))
+        compute = build('compute', 'v1')
+        
+        instancename=None
+        projectid=None
+        computezone=None
+        cnt=0
+        logging.debug("******Length of resource[labels]********** {}".format(resource["labels"]))  
+        try:
+          for labels in resource["labels"]:
+            cnt=cnt+1
+            logging.debug("******Inside For loop********** {}".format(labels))  
+            logging.debug("******type of labels********** {}".format(type(labels)))  
+            logging.debug("******InstanceName********** {}".format(instancename)) 
+            logging.debug("******ProjectId********** {}".format(projectid)) 
+            logging.debug("******Zone********** {}".format(computezone)) 
+            
+            if "instance_id" in labels.values():
+              instancename=labels["value"]
+              logging.debug("***instancename*******{}".format(instancename))
+              
+            if "project_id"  in labels.values():
+              projectid=labels["value"]
+              logging.debug("***ProjectId*******{}".format(projectid))
+              
+            if "zone" in labels.values():
+              computezone=labels["value"]   
+              logging.debug("***Zone*******{}".format(computezone))
+              
+          
+            if((instancename!=None) and (projectid!=None) and (computezone!=None)):
+              logging.debug("**Inside Instance Call **")
+              #request = compute.instances().get(project=projectid, zone=computezone, instance=instancename)
+              request=  compute.instances().get(project=projectid, zone=computezone, instance=instancename,fields="machineType")
+              #{u'machineType': u'https://www.googleapis.com/compute/v1/projects/managed-gcp/zones/us-central1-a/machineTypes/n1-standard-2'}
+              response = request.execute()
+              if ("machineType" in response.keys()):
+                
+                machinetype=response["machineType"].rsplit('/',1)[-1]   
+                logging.debug("******Machine Type {}".format(machinetype))
+                request=compute.machineTypes().get(project=projectid, zone=computezone, machineType=machinetype)
+                response = request.execute()
+                logging.debug("**After Instance Call **")
+                logging.debug("Response for instance******** {}".format(json.dumps(response, sort_keys=True, indent=4)))
+                guestCpus=response["guestCpus"]
+                logging.debug("******Guest Cpus {}".format(guestCpus))
+                memoryMb=response["memoryMb"]
+                memory=dict({"value": memoryMb,"key":"memoryMb"})
+                resource["labels"].append(memory)
+                cpu=dict({"value": guestCpus,"key":"guestCpus"})
+                instancetype=({"value":machinetype,"key":"machinetype"})
+                resource["labels"].append(cpu)
+                resource["labels"].append(instancetype)
+                logging.debug("****************Labels resource after modification: {}".format(resource["labels"]))
+                break
+            else:
+                logging.debug("count {}: The values InstanceName {}, ProjectId {}, Zone{} ".format(cnt,instancename,projectid,computezone)) 
+                if(cnt==len(resource["labels"])):
+                  logging.debug("count equal to labels length therefore exiting")
+                  break
+           
+          logging.debug("The values InstanceName {}, ProjectId {}, Zone{} ".format(instancename,projectid,computezone))   
+          logging.debug("Finished retriving instance details **************") 
+
+        except ValueError as ve:
+            logging.error("Value Error: {}".format(ve))
+            self.response.write(ve)
+            
+        except HttpError as he:
+            logging.error("Http Error: {}".format(he))
+            cpu=dict({"value": "N/A","key":"guestCpus"})
+            resource["labels"].append(cpu)
+            memory=dict({"value": "N/A","key":"memoryMb"})
+            resource["labels"].append(memory)
+            machinetype=dict({"value": "N/A","key":"machinetype"})
+            resource["labels"].append(machinetype)
+            self.response.write(he)
 
         row["resource"] = resource
-
+        logging.debug("************Resource Row {}".format(resource))
         interval = {
             "start_time": timeseries["points"][point_idx]["interval"]["startTime"], 
             "end_time": timeseries["points"][point_idx]["interval"]["endTime"]
@@ -65,7 +148,9 @@ def build_rows(timeseries, metadata):
         # map the API value types to the BigQuery value types
         value_type = timeseries["valueType"]
         bigquery_value_type_index = config.bigquery_value_map[value_type]
+        logging.debug("Big Query Value Type {}".format(bigquery_value_type_index))
         api_value_type_index = config.api_value_map[value_type]
+        logging.debug("API Value Type {}".format(api_value_type_index))
         value_type_label = {}
         value = timeseries["points"][point_idx]["value"][api_value_type_index]
         if value_type == config.DISTRIBUTION:
@@ -114,7 +199,7 @@ def get_labels(timeseries,label_name):
             metric_label["key"] = label
             metric_label["value"] = timeseries[label_name][label]
             metric_labels_list.append(metric_label)
-    logging.debug("get_labels: {}".format(json.dumps(metric_labels_list,sort_keys=True, indent=4)))
+    logging.debug("*****get_labels: {}".format(json.dumps(metric_labels_list,sort_keys=True, indent=4)))
     return metric_labels_list
 
 
@@ -290,7 +375,8 @@ class ReceiveMessage(webapp2.RequestHandler):
             error_msg_cnt = 0
         else:
 
-            rows = build_rows(timeseries, metadata)
+            rows = build_rows(self,timeseries, metadata)
+            logging.debug("Rows ")
             bigquery = build('bigquery', 'v2', cache_discovery=True)
             body = {
                 "kind": "bigquery#tableDataInsertAllRequest",
