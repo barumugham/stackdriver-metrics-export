@@ -38,6 +38,7 @@ def set_last_end_time(project_id, bucket_name, end_time_str, offset):
     # get the datetime object
     end_time = datetime.strptime(end_time_str, '%Y-%m-%dT%H:%M:%S.%fZ')
     delta = timedelta(seconds=offset)
+    logging.debug("delta {}".format(delta))
     # Add offset seconds & convert back to str
     end_time_calc = end_time + delta
     end_time_calc_str = end_time_calc.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
@@ -103,6 +104,8 @@ def publish_metrics(msg_list):
         response = service.projects().topics().publish(
             topic=topic_path, body=body
         ).execute()
+        logging.info("*Total Messages Published {}".format(len(msg_list)))
+        logging.info("******Messages  {}".format(msg_list))
         #logging.debug("response is {}".format(json.dumps(response, sort_keys=True, indent=4)))
     else:
         logging.debug("No pubsub messages to publish")
@@ -150,8 +153,37 @@ def check_exclusions(metric):
         returns True for metrics to include
         returns False for metrics to exclude
     """
+    logging.debug("Inside check exclusions*")
+    logging.debug("Metrics {}".format(metric))
+    valueMetric="ss"
     inclusions = config.INCLUSIONS
-    if "include_all" in inclusions and inclusions["include_all"] == config.ALL:
+    
+
+    for k,v in metric.iteritems():
+    
+            if k=="type":
+                valueMetric=v
+                break
+    
+    if 'metricTypes' in inclusions:
+        size=len(inclusions['metricTypes'])
+        cnt = 0
+        for inclusion in inclusions['metricTypes']:
+            cnt +=1
+            #logging.debug("inclusion{}".format(inclusion))
+            #logging.debug("metric type{}".format(metric['type']))
+            #logging.debug("inclusion metricTypes check:  {},{}".format(metric['type'],inclusion['metricType']))
+            #if metric['type'].find(inclusion['metricType']) == -1:
+            if valueMetric.find(inclusion['metricType']) == -1:
+                if (cnt==size):
+                    logging.debug("metric type not found in inclusion {}".format(metric['type']))
+                    logging.debug("Returning False****")
+                    return False
+            else:
+                logging.info("including based on metricType {},{}".format(valueMetric,inclusion['metricType']))
+                break
+
+    ''' if "include_all" in inclusions and inclusions["include_all"] == config.ALL:
         #logging.debug("including based on include_all setting {},{}".format(metric['type'],inclusions["include_all"]))
         return True
 
@@ -175,34 +207,36 @@ def check_exclusions(metric):
             #logging.debug("inclusion metricTypes check:  {},{}".format(metric['type'],inclusion['metricTypeGroup']))
             if metric['type'].find(inclusion['metricTypeGroup']) != -1:
                 logging.debug("including based on metricTypeGroups {},{}".format(metric['type'],inclusion['metricTypeGroup']))
-                return True
+                return True '''
 
     exclusions = config.EXCLUSIONS
     if "exclude_all" in exclusions and exclusions["exclude_all"] == config.ALL:
-        #logging.debug("excluding based on exclude_all setting {},{}".format(metric['type'],exclusions["exclude_all"]))
+        logging.debug("excluding based on exclude_all setting {},{}".format(metric['type'],exclusions["exclude_all"]))
         return False
 
     if 'metricKinds' in exclusions:
         for exclusion in exclusions['metricKinds']:
-            #logging.debug("exclusion check:  {},{}".format(metric['metricKind'],exclusion['metricKind']))
+            logging.debug("Inside exclusion metrickind for")
+            logging.debug("exclusion check:  {},{}".format(metric['metricKind'],exclusion['metricKind']))
             if ((metric['metricKind'] == exclusion['metricKind']) and
                 (metric['valueType'] == exclusion['valueType'])):
-                #logging.debug("excluding based on metricKind {},{} AND {},{}".format(metric['metricKind'],exclusion['metricKind'],metric['valueType'],exclusion['valueType']))
+                logging.debug("excluding based on metricKind {},{} AND {},{}".format(metric['metricKind'],exclusion['metricKind'],metric['valueType'],exclusion['valueType']))
                 return False
 
     if 'metricTypes' in exclusions:
         for exclusion in exclusions['metricTypes']:
-            #logging.debug("exclusion metricTypes check:  {},{}".format(metric['type'],exclusion['metricType']))
+            logging.debug("exclusion metricTypes check:  {},{}".format(metric['type'],exclusion['metricType']))
             if metric['type'].find(exclusion['metricType']) != -1:
-                #logging.debug("excluding based on metricType {},{}".format(metric['type'],exclusion['metricType']))
+                logging.debug("excluding based on metricType {},{}".format(metric['type'],exclusion['metricType']))
                 return False
 
     if 'metricTypeGroups' in exclusions:
         for exclusion in exclusions['metricTypeGroups']:
-            #logging.debug("exclusion metricTypeGroups check:  {},{}".format(metric['type'],exclusion['metricTypeGroup']))
+            logging.debug("exclusion metricTypeGroups check:  {},{}".format(metric['type'],exclusion['metricTypeGroup']))
             if metric['type'].find(exclusion['metricTypeGroup']) != -1:
-                #logging.debug("excluding based on metricTypeGroup {},{}".format(metric['type'],exclusion['metricTypeGroup']))
+                logging.debug("excluding based on metricTypeGroup {},{}".format(metric['type'],exclusion['metricTypeGroup']))
                 return False
+    logging.debug("Returning true for metricTypes {}".format(metric))           
     return True
 
 
@@ -252,8 +286,8 @@ def get_and_publish_metrics(message_to_publish, metadata):
             #logging.debug("Processing metric {} for publish".format(metric))
             metadata["payload"] = '{}'.format(json.dumps(metric))
             metadata["error_msg_cnt"] = 0
-
             message_to_publish["metric"] = metric
+            logging.debug("Before check exclusion* {}".format(metric))
             if check_exclusions(metric):
                 pubsub_msg = get_message_for_publish_metric(
                     message_to_publish, metadata
@@ -263,11 +297,11 @@ def get_and_publish_metrics(message_to_publish, metadata):
                 metadata["msg_without_timeseries"] = 0
                 msgs_published += 1
             else:
-                #logging.debug("Excluded the metric: {}".format(metric['name']))
+                logging.debug("Excluded the metric: {}".format(metric['name']))
                 msgs_excluded += 1
                 metadata["msg_written_cnt"] = 0
                 metadata["msg_without_timeseries"] = 1
-
+            
             # build a list of stats messages to write to BigQuery
             if config.WRITE_BQ_STATS_FLAG:
                 json_msg = build_bigquery_stats_message(
@@ -349,6 +383,7 @@ def write_stats(stats, stats_project_id, batch_id):
 
     body["timeSeries"][0]["metric"]["type"] = "custom.googleapis.com/stackdriver-monitoring-export/msgs-excluded"
     body["timeSeries"][0]["points"][0]["value"]["int64Value"] = stats["msgs_excluded"]
+    logging.debug("Message body* {}".format(body))
     metrics = service.projects().timeSeries().create(
         name=project_name,
         body=body
@@ -566,14 +601,18 @@ class ReceiveMessage(webapp2.RequestHandler):
             sent_in_start_time_flag = False
             if "start_time" not in data:
                 start_time_str = get_last_end_time(project_id, bucket_name)
+                logging.debug("GCS Bucket value for Start Time {}".format(start_time_str))
                 # if the file hasn't been found, then start 1 alignment period in the past
                 if not start_time_str:
+                    logging.debug("Setting Start Time as it is not in data")
+                    logging.debug("Alignment Seconds {}".format(alignment_seconds))
                     start_time_str = set_last_end_time(project_id, bucket_name, end_time_str, (alignment_seconds * -1))
                     #raise ValueError("start_time couldn't be read from GCS, received: {}".format(start_time_str))
                 logging.debug("start_time_str: {}, end_time_str: {}".format(start_time_str, end_time_str))
             else:
                 sent_in_start_time_flag = True
                 start_time_str = data["start_time"]
+                logging.debug("Start Time found in data {}".format(start_time_str))
                 matched = check_date_format(start_time_str)
                 if not matched:
                     raise ValueError("start_time needs to be in the format 2019-02-08T14:00:00.311635Z, received: {}".format(start_time_str))

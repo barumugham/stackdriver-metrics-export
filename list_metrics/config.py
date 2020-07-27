@@ -15,8 +15,8 @@
 # limitations under the License.
 
 PUBSUB_TOPIC="metrics_list"
-AGGREGATION_ALIGNMENT_PERIOD="3600s"
-PUBSUB_VERIFICATION_TOKEN = '16b2ecfb-7734-48b9-817d-4ac8bd623c87'
+AGGREGATION_ALIGNMENT_PERIOD="86400s"
+PUBSUB_VERIFICATION_TOKEN = 'fed33b83-21c5-4065-b5c9-87c1fe1318fa'
 LAST_END_TIME_FILENAME="last_end_time.txt"
 PAGE_SIZE=500
 BIGQUERY_DATASET='metric_export'
@@ -26,7 +26,7 @@ WRITE_BQ_STATS_FLAG=True
 WRITE_MONITORING_STATS_FLAG=True
 ALL="*"
 
-INCLUSIONS = {
+INCLUSIONS1 = {
     "include_all": "",
     "metricTypes":[
 #       { "metricType": "compute.googleapis.com/instance/cpu/utilization" },
@@ -34,6 +34,25 @@ INCLUSIONS = {
     ],
     "metricTypeGroups": [
 #        { "metricTypeGroup": "bigquery.googleapis.com" }
+    ]
+}
+
+INCLUSIONS = {
+    "include_all": "",
+    "metricTypes":[
+       #{"metricType": "actions.googleapis.com/smarthome_action/num_active_users"},
+       { "metricType": "compute.googleapis.com/instance/cpu/utilization" },
+       { "metricType": "compute.googleapis.com/instance/disk/write_ops_count" },
+       {"metricType":"compute.googleapis.com/instance/disk/max_read_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/read_bytes_count"},
+       {"metricType":"agent.googleapis.com/cpu/utilization"},
+       {"metricType":"agent.googleapis.com/disk/bytes_used"},
+       {"metricType":"agent.googleapis.com/disk/io_time"},
+       {"metricType":"agent.googleapis.com/memory/bytes_used"},
+       {"metricType":"agent.googleapis.com/memory/percent_used"},
+       {"metricType":"compute.googleapis.com/instance/network/received_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/cpu/usage_time"},
+       {"metricType":"compute.googleapis.com/instance/cpu/reserved_cores"}
     ]
 }
 
