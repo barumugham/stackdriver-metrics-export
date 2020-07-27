@@ -78,7 +78,7 @@ class ReceiveMessage(webapp2.RequestHandler):
         start_time_str = data["start_time"]
         project_id = data["project_id"]
 
-        logging.debug('get_timeseries for metric: {},{},{},{},{}'.format(
+        logging.info('get_timeseries for metric: {},{},{},{},{}'.format(
             metric_type, metric_kind, metric_val_type, start_time_str, end_time_str)
         )
         project_name = 'projects/{project_id}'.format(
@@ -94,6 +94,15 @@ class ReceiveMessage(webapp2.RequestHandler):
         crossSeriesReducer, perSeriesAligner = get_aligner_reducer(
             metric_kind, metric_val_type
         )
+        if((metric_type=="compute.googleapis.com/instance/cpu/reserved_cores") | (metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time")):
+          perSeriesAligner="ALIGN_MEAN"
+          #if((metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time")):
+           # crossSeriesReducer=config.REDUCE_MEAN     
+          logging.debug("Metric Type{} , Per Series Aligner {}".format(metric_type,perSeriesAligner))
+          logging.debug("Metric Type{} , Cross Series Reducer {}".format(metric_type,crossSeriesReducer))
+
+        
+        
 
         # build a dict with the API parameters
         api_args = {}
@@ -103,7 +112,7 @@ class ReceiveMessage(webapp2.RequestHandler):
         api_args["start_time_str"] = data["start_time"]
         api_args["aggregation_alignment_period"] = data["aggregation_alignment_period"]
         api_args["group_by"] = config.GROUP_BY_STRING
-        api_args["crossSeriesReducer"] = crossSeriesReducer
+        #api_args["crossSeriesReducer"] = crossSeriesReducer
         api_args["perSeriesAligner"] = perSeriesAligner
         api_args["nextPageToken"] = ""
 
@@ -112,17 +121,24 @@ class ReceiveMessage(webapp2.RequestHandler):
         timeseries = {}
         while True:
             try:
+                logging.debug("*************************Metric Filter {}".format(api_args["metric_filter"]))
                 timeseries = self.get_timeseries(api_args)
+                logging.debug(" ************TimeSeries Returned from Api { }".format(timeseries))
             except HttpError as he:
                 metadata["error_msg_cnt"] = 1
                 logging.error(
                     "Exception calling Monitoring API: {}".format(he)
                 )
+                logging.info("Metric Filter {}".format(api_args["metric_filter"]))
+            except KeyError as ke:
+                logging.error("Key Error: {}".format(ke))
+                logging.info("Metric Filter {}".format(api_args["metric_filter"]))
 
             if timeseries:
-
+                logging.info("printing timeseries {}".format(timeseries))
                 # retryable error codes based on https://developers.google.com/maps-booking/reference/grpc-api/status_codes
                 if "executionErrors" in timeseries:
+                    logging.info("Inside execution error")
                     if timeseries["executionErrors"]["code"] != 0:
                         response_code = 500
                         logging.error(
@@ -133,6 +149,7 @@ class ReceiveMessage(webapp2.RequestHandler):
                         break
                 else:
                     # write the timeseries
+                    logging.info("Writing the time series")
                     msgs_published += self.publish_timeseries(timeseries, metadata)
                     metrics_count_from_api += len(timeseries["timeSeries"])
                     if "nextPageToken" in timeseries:
@@ -184,11 +201,13 @@ class ReceiveMessage(webapp2.RequestHandler):
             pageSize=config.PAGE_SIZE,
             pageToken=api_args["nextPageToken"]
         ).execute()
-        logging.debug('response: {}'.format(json.dumps(timeseries, sort_keys=True, indent=4)))
+        logging.debug('filter ***************: {}'.format(filter))
+        logging.debug('response *: {}'.format(json.dumps(timeseries, sort_keys=True, indent=4)))
+        logging.debug('returning timeseries *: {}'.format(json.dumps(timeseries, sort_keys=True, indent=4)))
         return timeseries
 
     def get_pubsub_message(self, one_timeseries, metadata):
-        logging.debug("pubsub msg is {}".format(json.dumps(one_timeseries, sort_keys=True, indent=4)))
+        logging.debug("pubsub msg in one_timeseries is{}".format(json.dumps(one_timeseries, sort_keys=True, indent=4)))
         data = json.dumps(one_timeseries).encode('utf-8')
         message = {
 
@@ -201,7 +220,7 @@ class ReceiveMessage(webapp2.RequestHandler):
             }
         }
 
-        logging.debug("pubsub msg is {}".format(json.dumps(message, sort_keys=True, indent=4)))
+        logging.debug("pubsub msg in msg is {}".format(json.dumps(message, sort_keys=True, indent=4)))
         return message
 
     def publish_metrics(self, msg_list):
@@ -227,13 +246,14 @@ class ReceiveMessage(webapp2.RequestHandler):
         """ Call the https://cloud.google.com/pubsub/docs/reference/rest/v1/projects.topics/publish
             using the googleapiclient to publish a message to Pub/Sub
         """
-
+        logging.debug("Inside Publish TimeSeries  publish_timeseries**********")
         msgs_published = 0
         json_msg_list = []
         pubsub_msg_list = []
         # handle >= 1 timeSeries, potentially > 1 returned from Monitoring API call
+        logging.info("Time Series Count {}".format(request["timeSeries"]))
         for one_timeseries in request["timeSeries"]:
-
+            logging.info("printing One Time Series Count {}".format(one_timeseries))
             message = self.get_pubsub_message(one_timeseries, metadata)
             pubsub_msg_list.append(message)
 
@@ -343,7 +363,7 @@ class ReceiveMessage(webapp2.RequestHandler):
             if "data" not in envelope["message"]:
                 raise ValueError("No data in message")
             payload = base64.b64decode(envelope["message"]["data"])
-            logging.debug('payload: {} '.format(payload))
+            logging.debug('**payload: {} '.format(payload))
 
             # if the pubsub PUBSUB_VERIFICATION_TOKEN isn't included or doesn't match, don't continue
             if "token" not in envelope["message"]["attributes"]:
@@ -366,7 +386,7 @@ class ReceiveMessage(webapp2.RequestHandler):
                 src_message_id = envelope["message"]["attributes"]["src_message_id"]
 
             data = json.loads(payload)
-            logging.debug('data: {} '.format(data))
+            logging.debug('**data: {} '.format(data))
 
             # Check the input parameters
             if not data:
