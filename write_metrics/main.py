@@ -89,7 +89,7 @@ def build_rows(self,timeseries, metadata):
               computezone=labels["value"]   
               logging.debug("***Zone*******{}".format(computezone))
               
-          
+          #For getting the machine type, cpu and memory
             if((instancename!=None) and (projectid!=None) and (computezone!=None)):
               logging.debug("**Inside Instance Call **")
               #request = compute.instances().get(project=projectid, zone=computezone, instance=instancename)
