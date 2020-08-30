@@ -34,7 +34,7 @@ def get_aligner_reducer(metric_kind, metric_val_type):
             perSeriesAligner = config.ALIGN_FRACTION_TRUE
         elif metric_val_type in [config.INT64, config.DOUBLE, config.DISTRIBUTION]:
             crossSeriesReducer = config.REDUCE_SUM
-            perSeriesAligner = config.ALIGN_SUM
+            perSeriesAligner = config.ALIGN_MEAN
         elif metric_val_type == config.STRING:
             crossSeriesReducer = config.REDUCE_COUNT
             perSeriesAligner = config.ALIGN_NONE
@@ -94,12 +94,15 @@ class ReceiveMessage(webapp2.RequestHandler):
         crossSeriesReducer, perSeriesAligner = get_aligner_reducer(
             metric_kind, metric_val_type
         )
-        if((metric_type=="compute.googleapis.com/instance/cpu/reserved_cores") | (metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time")):
+        if((metric_type=="compute.googleapis.com/instance/cpu/reserved_cores") | (metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time") | (metric_type=="compute.googleapis.com/instance/disk/write_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/read_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/write_bytes_count") | 
+        (metric_type=="compute.googleapis.com/instance/disk/read_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_read_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_write_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_read_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_write_ops_count")):
           perSeriesAligner="ALIGN_MEAN"
+        elif ((metric_type=="compute.googleapis.com/instance/disk/max_read_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/max_write_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/max_write_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/max_read_bytes_count")):  
+          perSeriesAligner="ALIGN_MAX"    
           #if((metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time")):
            # crossSeriesReducer=config.REDUCE_MEAN     
-          logging.debug("Metric Type{} , Per Series Aligner {}".format(metric_type,perSeriesAligner))
-          logging.debug("Metric Type{} , Cross Series Reducer {}".format(metric_type,crossSeriesReducer))
+        logging.debug("Metric Type{} , Per Series Aligner {}".format(metric_type,perSeriesAligner))
+        logging.debug("Metric Type{} , Cross Series Reducer {}".format(metric_type,crossSeriesReducer))
 
         
         
@@ -111,7 +114,10 @@ class ReceiveMessage(webapp2.RequestHandler):
         api_args["end_time_str"] = data["end_time"]
         api_args["start_time_str"] = data["start_time"]
         api_args["aggregation_alignment_period"] = data["aggregation_alignment_period"]
-        api_args["group_by"] = config.GROUP_BY_STRING
+        if((metric_type=="agent.googleapis.com/memory/bytes_used") | (metric_type=="agent.googleapis.com/memory/percent_used") | (metric_type=="agent.googleapis.com/disk/percent_used") | (metric_type=="compute.googleapis.com/guest/memory/bytes_used")):
+          api_args["group_by"] = "metadata.system_labels.name"      
+        else:
+          api_args["group_by"] = config.GROUP_BY_STRING
         #api_args["crossSeriesReducer"] = crossSeriesReducer
         api_args["perSeriesAligner"] = perSeriesAligner
         api_args["nextPageToken"] = ""

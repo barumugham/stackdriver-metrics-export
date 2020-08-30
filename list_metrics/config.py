@@ -43,8 +43,17 @@ INCLUSIONS = {
        #{"metricType": "actions.googleapis.com/smarthome_action/num_active_users"},
        { "metricType": "compute.googleapis.com/instance/cpu/utilization" },
        { "metricType": "compute.googleapis.com/instance/disk/write_ops_count" },
+       { "metricType": "compute.googleapis.com/instance/disk/read_ops_count" },
+       { "metricType": "compute.googleapis.com/instance/disk/max_read_ops_count" },
+       { "metricType":  "compute.googleapis.com/instance/disk/max_write_ops_count"},
+       { "metricType":"compute.googleapis.com/instance/disk/max_write_bytes_count" },
        {"metricType":"compute.googleapis.com/instance/disk/max_read_bytes_count"},
        {"metricType":"compute.googleapis.com/instance/disk/read_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/write_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/throttled_read_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/throttled_write_bytes_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/throttled_read_ops_count"},
+       {"metricType":"compute.googleapis.com/instance/disk/throttled_write_ops_count"},
        {"metricType":"agent.googleapis.com/cpu/utilization"},
        {"metricType":"agent.googleapis.com/disk/bytes_used"},
        {"metricType":"agent.googleapis.com/disk/io_time"},
@@ -52,7 +61,8 @@ INCLUSIONS = {
        {"metricType":"agent.googleapis.com/memory/percent_used"},
        {"metricType":"compute.googleapis.com/instance/network/received_bytes_count"},
        {"metricType":"compute.googleapis.com/instance/cpu/usage_time"},
-       {"metricType":"compute.googleapis.com/instance/cpu/reserved_cores"}
+       {"metricType":"compute.googleapis.com/instance/cpu/reserved_cores"},
+       {"metricType":"compute.googleapis.com/guest/memory/bytes_used"}
     ]
 }
 

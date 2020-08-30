@@ -136,6 +136,8 @@ def build_rows(self,timeseries, metadata):
             resource["labels"].append(memory)
             machinetype=dict({"value": "N/A","key":"machinetype"})
             resource["labels"].append(machinetype)
+            found=dict({"value": "False","key":"Found"})
+            resource["labels"].append(found)
             self.response.write(he)
 
         row["resource"] = resource
