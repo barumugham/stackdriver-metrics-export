@@ -30,7 +30,9 @@ bq mk --table metric_export.sd_metrics_params  ./bigquery_schemas/bigquery_schem
 ```
 
 5. Replace the JSON token in the config.py files
-Generate a new token and then replace that token in the each of config.py files. Use this same token in the Cloud Scheduler.
+Generate a new TOKEN and then replace that token in the each of config.py files. 
+Generate a LIST_PROJECTS_TOKEN and use that in the cloud scheduler and also in the list_projects/config.json
+
 ```sh
 TOKEN=$(python -c "import uuid;  msg = uuid.uuid4(); print msg")
 LIST_PROJECTS_TOKEN=$(python -c "import uuid;  msg = uuid.uuid4(); print msg")
@@ -80,13 +82,13 @@ export GET_TIMESERIES_URL=https://get-timeseries-dot-$PROJECT_ID.appspot.com
 export WRITE_METRICS_URL=https://write-metrics-dot-$PROJECT_ID.appspot.com
 
 gcloud pubsub topics create metrics_export_start
-gcloud pubsub subscriptions create metrics_export_start_sub --topic metrics_export_start --ack-deadline=60 --message-retention-duration=10m --push-endpoint="$LIST_METRICS_URL/_ah/push-handlers/receive_message"
+gcloud pubsub subscriptions create metrics_export_start_sub --topic metrics_export_start --ack-deadline=600 --message-retention-duration=10m --push-endpoint="$LIST_METRICS_URL/_ah/push-handlers/receive_message"
 
 gcloud pubsub topics create metrics_list
-gcloud pubsub subscriptions create metrics_list_sub --topic metrics_list --ack-deadline=60 --message-retention-duration=30m --push-endpoint="$GET_TIMESERIES_URL/_ah/push-handlers/receive_message"
+gcloud pubsub subscriptions create metrics_list_sub --topic metrics_list --ack-deadline=600 --message-retention-duration=30m --push-endpoint="$GET_TIMESERIES_URL/_ah/push-handlers/receive_message"
 
 gcloud pubsub topics create write_metrics
-gcloud pubsub subscriptions create write_metrics_sub --topic write_metrics --ack-deadline=60 --message-retention-duration=30m  --push-endpoint="$WRITE_METRICS_URL/_ah/push-handlers/receive_message"
+gcloud pubsub subscriptions create write_metrics_sub --topic write_metrics --ack-deadline=600 --message-retention-duration=30m  --push-endpoint="$WRITE_METRICS_URL/_ah/push-handlers/receive_message"
 ``` 
 
 8. Create a service account for the list_projects function
@@ -99,8 +101,11 @@ export LIST_PROJECTS_SERVICE_ACCOUNT=gce-list-projects@$PROJECT_ID.iam.gservicea
 
 9 Assign IAM permissions to the service account
 ```sh
-gcloud projects add-iam-policy-binding  $PROJECT_ID --member="serviceAccount:$LIST_PROJECTS_SERVICE_ACCOUNT"     --role="roles/compute.viewer"
-gcloud projects add-iam-policy-binding  $PROJECT_ID --member="serviceAccount:$LIST_PROJECTS_SERVICE_ACCOUNT"     --role="roles/compute.browser"
+gcloud projects add-iam-policy-binding  $PROJECT_ID --member="serviceAccount:$LIST_PROJECTS_SERVICE_ACCOUNT"     --role="roles/editor"
+
+//Add role compute.editor
+gcloud projects add-iam-policy-binding  $PROJECT_ID --member="serviceAccount:$LIST_PROJECTS_SERVICE_ACCOUNT"     --role="roles/editor"
+
 gcloud projects add-iam-policy-binding  $PROJECT_ID --member="serviceAccount:$LIST_PROJECTS_SERVICE_ACCOUNT"     --role="roles/pubsub.publisher"
 ```
 
@@ -114,10 +119,10 @@ gcloud functions deploy list_projects \
 --service-account=$LIST_PROJECTS_SERVICE_ACCOUNT
 ```
 
-11. Deploy the Cloud Scheduler job
+11. Deploy the Cloud Scheduler job so that it will execute once per day at 11 pm
 ```sh
 gcloud scheduler jobs create pubsub metric_export \
---schedule "*/5 * * * *" \
+--schedule "0 23 * * *" \
 --topic metric_export_get_project_start \
 --message-body "{ \"token\":\"$(echo $LIST_PROJECTS_TOKEN)\"}"
 ```
@@ -142,6 +147,8 @@ gcloud pubsub topics publish metrics_export_start --message "{\"token\": \"$TOKE
 
 Configure your project_id and lookup the batch_id in the config.py file.
 ```sh
+
+The below instructions are only for unit tests
 cd test
 export PROJECT_ID=$(gcloud config get-value project)
 export TIMESTAMP=$(date -d "-2 hour"  +%Y-%m-%dT%k:%M:00Z)
