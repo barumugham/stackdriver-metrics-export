@@ -1,5 +1,5 @@
 {
-    "PROJECTS_TOPIC" : "projects/managed-gcp/topics/metrics_export_start",
+    "PROJECTS_TOPIC" : "projects/managed-gcp-mgmt/topics/metrics_export_start",
   	"TOKEN": "0edf161e-62a1-487d-b217-53134e853402",
     "ACTIVE": "ACTIVE",
     "METRIC_EXPORT_PUBSUB_VERIFICATION_TOKEN": "fed33b83-21c5-4065-b5c9-87c1fe1318fa"

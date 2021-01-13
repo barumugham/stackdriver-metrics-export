@@ -74,7 +74,8 @@ class ReceiveStart(webapp2.RequestHandler):
 
         try:
             if not last_end_time_str:
-                self.set_last_end_time(bucket_name)
+                pass
+                #self.set_last_end_time(bucket_name)
         except NotFoundError as nfe:
             logging.error("Missing file when writing to GCS: {}".format(nfe))
             last_end_time_str = None

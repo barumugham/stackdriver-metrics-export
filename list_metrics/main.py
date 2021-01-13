@@ -592,6 +592,7 @@ class ReceiveMessage(webapp2.RequestHandler):
                 end_time_str = end_time.strftime('%Y-%m-%dT%H:%M:%S.%fZ')
             else:
                 end_time_str = data["end_time"]
+                logging.debug("*End Time Str {}".format(end_time_str))
                 matched = check_date_format(end_time_str)
                 if not matched:
                     raise ValueError("end_time needs to be in the format 2019-02-08T14:00:00.311635Z, received: {}".format(end_time_str))
@@ -603,6 +604,7 @@ class ReceiveMessage(webapp2.RequestHandler):
                 start_time_str = get_last_end_time(project_id, bucket_name)
                 logging.debug("GCS Bucket value for Start Time {}".format(start_time_str))
                 # if the file hasn't been found, then start 1 alignment period in the past
+                logging.debug("*File Not Found")
                 if not start_time_str:
                     logging.debug("Setting Start Time as it is not in data")
                     logging.debug("Alignment Seconds {}".format(alignment_seconds))
@@ -610,6 +612,7 @@ class ReceiveMessage(webapp2.RequestHandler):
                     #raise ValueError("start_time couldn't be read from GCS, received: {}".format(start_time_str))
                 logging.debug("start_time_str: {}, end_time_str: {}".format(start_time_str, end_time_str))
             else:
+                logging.debug("**File Found")
                 sent_in_start_time_flag = True
                 start_time_str = data["start_time"]
                 logging.debug("Start Time found in data {}".format(start_time_str))
@@ -620,7 +623,7 @@ class ReceiveMessage(webapp2.RequestHandler):
 
             # Create a unique identifier for this batch
             batch_id = get_batch_id()
-            logging.debug("batch_id: {}".format(batch_id))
+            logging.debug("*batch_id: {}".format(batch_id))
 
             # Publish the messages to Pub/Sub
             logging.info("Running with input parameters - {}".format(json.dumps(message_to_publish, sort_keys=True, indent=4)))

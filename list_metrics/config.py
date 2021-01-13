@@ -62,7 +62,12 @@ INCLUSIONS = {
        {"metricType":"compute.googleapis.com/instance/network/received_bytes_count"},
        {"metricType":"compute.googleapis.com/instance/cpu/usage_time"},
        {"metricType":"compute.googleapis.com/instance/cpu/reserved_cores"},
-       {"metricType":"compute.googleapis.com/guest/memory/bytes_used"}
+       {"metricType":"compute.googleapis.com/guest/memory/bytes_used"} ,	
+	   {"metricType":"compute.googleapis.com/guest/system/uptime"},	
+	   {"metricType":"compute.googleapis.com/instance/uptime"},	
+	   {"metricType":"compute.googleapis.com/instance/uptime_total"},	
+	   {"metricType":"monitoring.googleapis.com/uptime_check/check_passed"},
+       {"metricType":"monitoring.googleapis.com/uptime_check/request_latency"}
     ]
 }
 

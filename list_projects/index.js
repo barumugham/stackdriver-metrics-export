@@ -95,6 +95,7 @@ exports.list_projects = (pubSubEvent, context) => {
     }
     if ("token" in jsonMessage) {
         const token = jsonMessage["token"];
+        console.log(`Token: ${token}`);
         if (token === config.TOKEN){
             return getProjects();
         } else {

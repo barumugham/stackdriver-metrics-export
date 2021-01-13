@@ -43,7 +43,7 @@ def get_aligner_reducer(metric_kind, metric_val_type):
     elif metric_kind == config.DELTA:
         if metric_val_type in [config.INT64, config.DOUBLE, config.DISTRIBUTION]:
             crossSeriesReducer = config.REDUCE_SUM
-            perSeriesAligner = config.ALIGN_SUM
+            perSeriesAligner = config.ALIGN_MEAN
         else:
             logging.debug("No match for DELTA {},{}".format(metric_kind, metric_val_type))
     elif metric_kind == config.CUMULATIVE:
@@ -98,7 +98,9 @@ class ReceiveMessage(webapp2.RequestHandler):
         (metric_type=="compute.googleapis.com/instance/disk/read_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_read_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_write_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_read_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/throttled_write_ops_count")):
           perSeriesAligner="ALIGN_MEAN"
         elif ((metric_type=="compute.googleapis.com/instance/disk/max_read_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/max_write_ops_count") | (metric_type=="compute.googleapis.com/instance/disk/max_write_bytes_count") | (metric_type=="compute.googleapis.com/instance/disk/max_read_bytes_count")):  
-          perSeriesAligner="ALIGN_MAX"    
+          perSeriesAligner="ALIGN_MAX"
+        elif ((metric_type=="compute.googleapis.com/instance/uptime")):  
+          perSeriesAligner="ALIGN_DELTA"    
           #if((metric_type=="compute.googleapis.com/instance/cpu/utilization") | (metric_type=="compute.googleapis.com/instance/cpu/usage_time")):
            # crossSeriesReducer=config.REDUCE_MEAN     
         logging.debug("Metric Type{} , Per Series Aligner {}".format(metric_type,perSeriesAligner))
